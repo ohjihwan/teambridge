@@ -1,5 +1,20 @@
+// ✅ webRTC.jsx (fallback + dummy stream 완성 버전)
 import { useEffect, useRef, useState } from 'react';
 import socket from '../sockets/socketClient';
+
+function createFakeVideoTrack() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 320;
+	canvas.height = 240;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = 'black';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = 'white';
+	ctx.font = '24px sans-serif';
+	ctx.fillText('🙈 No Camera', 60, 130);
+	const stream = canvas.captureStream(1); // 1fps
+	return stream.getVideoTracks()[0];
+}
 
 const VideoChat = () => {
 	const localVideoRef = useRef(null);
@@ -23,30 +38,36 @@ const VideoChat = () => {
 	}, []);
 
 	const joinRoom = async () => {
+		let stream;
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 			localVideoRef.current.srcObject = stream;
-
-			peerRef.current = createPeer();
-			stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
-
-			socket.emit('join', roomId);
-			setJoined(true);
 		} catch (err) {
-			console.warn('🚫 카메라 없음, fallback 이미지 사용');
-			setJoined(true);
-			if (localVideoRef.current) {
-				localVideoRef.current.poster = './assets/imgs/fall-back-image.png'; // ✅ 경로 확인 필요
+			console.warn('🚫 카메라 또는 마이크 없음. fallback 스트림 사용');
+			const dummyStream = new MediaStream();
+			const fakeVideo = createFakeVideoTrack();
+			dummyStream.addTrack(fakeVideo);
+			try {
+				const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+				audioStream.getAudioTracks().forEach(track => dummyStream.addTrack(track));
+			} catch {
+				console.warn('🔇 오디오 없음');
 			}
-			socket.emit('join', roomId);
+			stream = dummyStream;
+			localVideoRef.current.srcObject = stream;
+			localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
 		}
+
+		peerRef.current = createPeer();
+		stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
+		socket.emit('join', roomId);
+		setJoined(true);
 	};
 
 	const createPeer = () => {
 		const peer = new RTCPeerConnection({
 			iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 		});
-
 		peer.onicecandidate = event => {
 			if (event.candidate) {
 				socket.emit('ice-candidate', {
@@ -55,13 +76,11 @@ const VideoChat = () => {
 				});
 			}
 		};
-
 		peer.ontrack = event => {
 			if (remoteVideoRef.current) {
 				remoteVideoRef.current.srcObject = event.streams[0];
 			}
 		};
-
 		return peer;
 	};
 
@@ -77,18 +96,21 @@ const VideoChat = () => {
 
 	const handleReceiveOffer = async ({ sdp, caller }) => {
 		otherUser.current = caller;
+		let stream;
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 			localVideoRef.current.srcObject = stream;
-			peerRef.current = createPeer();
-			stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
-		} catch (err) {
-			console.warn('📷 상대방 연결 중 → 카메라 없음, fallback 적용');
-			if (localVideoRef.current) {
-				localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
-			}
-			peerRef.current = createPeer();
+		} catch {
+			console.warn('📷 응답자 fallback 모드 진입');
+			const dummyStream = new MediaStream();
+			const fakeVideo = createFakeVideoTrack();
+			dummyStream.addTrack(fakeVideo);
+			stream = dummyStream;
+			localVideoRef.current.srcObject = stream;
+			localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
 		}
+		peerRef.current = createPeer();
+		stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
 		await peerRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
 		const answer = await peerRef.current.createAnswer();
 		await peerRef.current.setLocalDescription(answer);
@@ -115,7 +137,9 @@ const VideoChat = () => {
 						onChange={(e) => setRoomId(e.target.value)}
 						style={{ padding: '6px', fontSize: '16px', marginRight: '10px' }}
 					/>
-					<button onClick={joinRoom} style={{ padding: '6px 12px', fontSize: '16px' }}>입장</button>
+					<button onClick={joinRoom} style={{ padding: '6px 12px', fontSize: '16px' }}>
+						입장
+					</button>
 				</div>
 			)}
 			<div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
