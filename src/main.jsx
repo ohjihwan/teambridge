@@ -2,9 +2,10 @@ import { StrictMode } from 'react' // 개발 중에 잘못된 코드를 감지�
 import { createRoot } from 'react-dom/client' // React 18부터 생긴 새로운 방식 (표준)
 import '@scss/common-ui.scss';
 import App from './App.jsx'
+import VideoChat from './webRTC.jsx'
 
 createRoot(document.getElementById('root')).render( /* index.html 안에 <div id="root"></div> 에 연결하겠다 */
 	<StrictMode> {/* 실수 검사 도우미 */}
-		<App /> {/* 컴포넌트를 실제로 브라우저에 표시하라는 명령 */}
+		<VideoChat /> {/* 컴포넌트를 실제로 브라우저에 표시하라는 명령 */}
 	</StrictMode>,
 )
