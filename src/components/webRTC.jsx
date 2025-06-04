@@ -121,7 +121,7 @@ const VideoChat = () => {
 			dummyStream.addTrack(fakeVideo);
 			stream = dummyStream;
 			localVideoRef.current.srcObject = stream;
-			localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
+			localVideoRef.current.poster = './assets/fall-back-image.png';
 		}
 		peerRef.current = createPeer();
 		stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
@@ -177,7 +177,7 @@ const VideoChat = () => {
 			<div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
 				<div>
 					<h4>📷 나</h4>
-					<video ref={localVideoRef} autoPlay playsInline muted width="300" height="200" poster="./assets/imgs/fall-back-image.png" />
+					<video ref={localVideoRef} autoPlay playsInline muted width="300" height="200" poster="./assets/fall-back-image.png" />
 				</div>
 				<div>
 					<h4>👤 상대</h4>
