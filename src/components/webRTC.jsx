@@ -1,6 +1,6 @@
-// ✅ webRTC.jsx (영상 + 채팅 기능 통합 버전)
+// ✅ webRTC.jsx (영상 + 채팅 기능 통합 + 중복 방지 + 유저이름 입력)
 import { useEffect, useRef, useState } from 'react';
-import socket from '../sockets/socketClient';
+import socket from '@socket/socketClient';
 
 function createFakeVideoTrack() {
 	const canvas = document.createElement('canvas');
@@ -20,26 +20,39 @@ const VideoChat = () => {
 	const localVideoRef = useRef(null);
 	const remoteVideoRef = useRef(null);
 	const peerRef = useRef(null);
+	const otherUser = useRef(null);
+
 	const [roomId, setRoomId] = useState('');
+	const [userName, setUserName] = useState('');
 	const [joined, setJoined] = useState(false);
 	const [chatInput, setChatInput] = useState('');
 	const [messages, setMessages] = useState([]);
-	const otherUser = useRef(null);
 
 	useEffect(() => {
-		socket.on('other-user', userId => {
-			otherUser.current = userId;
-			createOffer();
-		});
-		socket.on('user-joined', userId => {
-			otherUser.current = userId;
-		});
-		socket.on('offer', handleReceiveOffer);
-		socket.on('answer', handleReceiveAnswer);
-		socket.on('ice-candidate', handleNewICECandidateMsg);
-		socket.on('chat-message', ({ sender, text }) => {
-			setMessages(prev => [...prev, { sender, text }]);
-		});
+		const handlers = {
+			'other-user': userId => {
+				otherUser.current = userId;
+				createOffer();
+			},
+			'user-joined': userId => {
+				otherUser.current = userId;
+			},
+			'offer': handleReceiveOffer,
+			'answer': handleReceiveAnswer,
+			'ice-candidate': handleNewICECandidateMsg,
+			'chat-message': ({ sender, text }) => {
+				setMessages(prev => [...prev, { sender, text }]);
+			}
+		};
+		for (const [event, handler] of Object.entries(handlers)) {
+			socket.off(event);
+			socket.on(event, handler);
+		}
+		return () => {
+			for (const event of Object.keys(handlers)) {
+				socket.off(event);
+			}
+		};
 	}, []);
 
 	const joinRoom = async () => {
@@ -130,10 +143,9 @@ const VideoChat = () => {
 		if (chatInput.trim()) {
 			socket.emit('chat-message', {
 				room: roomId,
-				sender: '나',
+				sender: userName || socket.id,
 				text: chatInput
 			});
-			setMessages(prev => [...prev, { sender: '나', text: chatInput }]);
 			setChatInput('');
 		}
 	};
@@ -143,6 +155,13 @@ const VideoChat = () => {
 			<h2>📞 1:1 화상채팅</h2>
 			{!joined && (
 				<div style={{ marginBottom: '10px' }}>
+					<input
+						type="text"
+						placeholder="이름 입력"
+						value={userName}
+						onChange={(e) => setUserName(e.target.value)}
+						style={{ padding: '6px', fontSize: '16px', marginRight: '10px' }}
+					/>
 					<input
 						type="text"
 						placeholder="방 번호 입력"

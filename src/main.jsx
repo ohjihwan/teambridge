@@ -4,7 +4,7 @@ import '@scss/common-ui.scss';
 import VideoChat from './components/webRTC.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-	<React.StrictMode>
-		<VideoChat />
-	</React.StrictMode>
+  <StrictMode>
+    <VideoChat />
+  </StrictMode>
 );
