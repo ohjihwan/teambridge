@@ -8,8 +8,8 @@ export default defineConfig({
 	base: '/teambridge/',
 	resolve: {
 		alias: {
-			'@scss': path.resolve(__dirname, 'assets/scss'),
-			'@img': path.resolve(__dirname, 'assets/imgs/img'),
+			'@scss': path.resolve(__dirname, '/assets/scss'),
+			'@img': path.resolve(__dirname, '/assets/imgs/img'),
 			'@ico': path.resolve(__dirname, './assets/imgs/ico'),
 			'@temp': path.resolve(__dirname, './assets/imgs/temp'),
 			'@socket': path.resolve(__dirname, 'sockets')
