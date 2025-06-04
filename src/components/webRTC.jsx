@@ -1,4 +1,4 @@
-// ✅ webRTC.jsx (fallback + dummy stream 완성 버전)
+// ✅ webRTC.jsx (영상 + 채팅 기능 통합 버전)
 import { useEffect, useRef, useState } from 'react';
 import socket from '../sockets/socketClient';
 
@@ -12,7 +12,7 @@ function createFakeVideoTrack() {
 	ctx.fillStyle = 'white';
 	ctx.font = '24px sans-serif';
 	ctx.fillText('🙈 No Camera', 60, 130);
-	const stream = canvas.captureStream(1); // 1fps
+	const stream = canvas.captureStream(1);
 	return stream.getVideoTracks()[0];
 }
 
@@ -22,6 +22,8 @@ const VideoChat = () => {
 	const peerRef = useRef(null);
 	const [roomId, setRoomId] = useState('');
 	const [joined, setJoined] = useState(false);
+	const [chatInput, setChatInput] = useState('');
+	const [messages, setMessages] = useState([]);
 	const otherUser = useRef(null);
 
 	useEffect(() => {
@@ -35,6 +37,9 @@ const VideoChat = () => {
 		socket.on('offer', handleReceiveOffer);
 		socket.on('answer', handleReceiveAnswer);
 		socket.on('ice-candidate', handleNewICECandidateMsg);
+		socket.on('chat-message', ({ sender, text }) => {
+			setMessages(prev => [...prev, { sender, text }]);
+		});
 	}, []);
 
 	const joinRoom = async () => {
@@ -50,14 +55,11 @@ const VideoChat = () => {
 			try {
 				const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 				audioStream.getAudioTracks().forEach(track => dummyStream.addTrack(track));
-			} catch {
-				console.warn('🔇 오디오 없음');
-			}
+			} catch {}
 			stream = dummyStream;
 			localVideoRef.current.srcObject = stream;
 			localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
 		}
-
 		peerRef.current = createPeer();
 		stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
 		socket.emit('join', roomId);
@@ -101,7 +103,6 @@ const VideoChat = () => {
 			stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 			localVideoRef.current.srcObject = stream;
 		} catch {
-			console.warn('📷 응답자 fallback 모드 진입');
 			const dummyStream = new MediaStream();
 			const fakeVideo = createFakeVideoTrack();
 			dummyStream.addTrack(fakeVideo);
@@ -125,6 +126,18 @@ const VideoChat = () => {
 		peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
 	};
 
+	const sendMessage = () => {
+		if (chatInput.trim()) {
+			socket.emit('chat-message', {
+				room: roomId,
+				sender: '나',
+				text: chatInput
+			});
+			setMessages(prev => [...prev, { sender: '나', text: chatInput }]);
+			setChatInput('');
+		}
+	};
+
 	return (
 		<div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
 			<h2>📞 1:1 화상채팅</h2>
@@ -142,22 +155,30 @@ const VideoChat = () => {
 					</button>
 				</div>
 			)}
-			<div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+			<div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
 				<div>
 					<h4>📷 나</h4>
-					<video
-						ref={localVideoRef}
-						autoPlay
-						playsInline
-						muted
-						width="300"
-						height="200"
-						poster="./assets/imgs/fall-back-image.png"
-					/>
+					<video ref={localVideoRef} autoPlay playsInline muted width="300" height="200" poster="./assets/imgs/fall-back-image.png" />
 				</div>
 				<div>
 					<h4>👤 상대</h4>
 					<video ref={remoteVideoRef} autoPlay playsInline width="300" height="200" />
+				</div>
+				<div style={{ flex: 1 }}>
+					<h4>💬 채팅</h4>
+					<div style={{ border: '1px solid #ccc', height: '200px', overflowY: 'auto', marginBottom: '10px', padding: '5px' }}>
+						{messages.map((msg, idx) => (
+							<p key={idx}><strong>{msg.sender}:</strong> {msg.text}</p>
+						))}
+					</div>
+					<input
+						type="text"
+						value={chatInput}
+						onChange={e => setChatInput(e.target.value)}
+						placeholder="메시지 입력"
+						style={{ padding: '6px', width: '80%', marginRight: '5px' }}
+					/>
+					<button onClick={sendMessage} style={{ padding: '6px 12px' }}>전송</button>
 				</div>
 			</div>
 		</div>
