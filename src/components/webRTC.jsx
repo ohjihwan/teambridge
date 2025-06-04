@@ -71,7 +71,7 @@ const VideoChat = () => {
 			} catch {}
 			stream = dummyStream;
 			localVideoRef.current.srcObject = stream;
-			localVideoRef.current.poster = './assets/imgs/fall-back-image.png';
+			localVideoRef.current.poster = './assets/fall-back-image.png';
 		}
 		peerRef.current = createPeer();
 		stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
